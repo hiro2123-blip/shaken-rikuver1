@@ -3,14 +3,13 @@
  */
 
 // 1. 設定エリア
-const ADMIN_EMAILS = ["hiro2123@gmail.com", "honbu-sub@example.com", "office@example.com"];
+const ADMIN_EMAILS = ["honbu-admin@example.com", "honbu-sub@example.com", "office@example.com"];
 const STORE_EMAILS = {
   "車検課": "syaken@example.com", "板橋ss": "it@ex.com", "志村ss": "shi@ex.com",
   "小茂根ss": "ko@ex.com", "赤羽西ss": "aka@ex.com", "東坂下ss": "hi@ex.com",
   "高島平ss": "taka@ex.com", "武蔵関ss": "mu@ex.com"
 };
 
-// 指定のフォルダID
 const FOLDER_ID = "120Pjmdr36BTFFTQxtgrJN6GGY9ovobrQ"; 
 
 function doGet(e) {
@@ -36,17 +35,12 @@ function parseFixedDate(str) {
   return p.length === 3 ? new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0) : null;
 }
 
-/**
- * 工場入庫日の計算ロジック
- * セーフティー：通検日の前日（日・土の場合は金曜まで遡る）
- * その他：通検日当日
- */
 function calculateEntryDate(baseDate, courseName) {
   let eDate = new Date(baseDate.getTime());
   if (courseName && courseName.indexOf('セーフティー') !== -1) {
-    eDate.setDate(eDate.getDate() - 1); // 1日前
-    if (eDate.getDay() === 0) eDate.setDate(eDate.getDate() - 2); // 日曜なら金曜へ
-    if (eDate.getDay() === 6) eDate.setDate(eDate.getDate() - 1); // 土曜なら金曜へ
+    eDate.setDate(eDate.getDate() - 1); 
+    if (eDate.getDay() === 0) eDate.setDate(eDate.getDate() - 2); 
+    if (eDate.getDay() === 6) eDate.setDate(eDate.getDate() - 1); 
   }
   return eDate;
 }
@@ -56,7 +50,6 @@ function sendSafeEmail(to, subject, body) {
   try { GmailApp.sendEmail(to, subject, body); } catch(e) { console.error("Mail fail: " + to); }
 }
 
-// リクエスト送信
 function submitRequest(formData) {
   const lock = LockService.getScriptLock();
   try {
@@ -88,7 +81,6 @@ function submitRequest(formData) {
   finally { lock.releaseLock(); }
 }
 
-// 確定処理
 function finalizeRequest(id, dateStr) {
   const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('予約データ');
   const v = ss.getDataRange().getValues();
@@ -98,8 +90,8 @@ function finalizeRequest(id, dateStr) {
       const fDate = parseFixedDate(dateStr);
       const eDate = calculateEntryDate(fDate, String(v[i][5]));
       ss.getRange(r, 9).setValue('確定'); 
-      ss.getRange(r, 7).setValue(fDate); // 通検予定日
-      ss.getRange(r, 8).setValue(eDate); // 工場入庫日
+      ss.getRange(r, 7).setValue(fDate);
+      ss.getRange(r, 8).setValue(eDate);
       const body = `${v[i][2]}様の内容が確定しました。\n\n通検予定日：${dateStr}\n工場入庫日：${Utilities.formatDate(eDate, "JST", "yyyy-MM-dd")}`;
       sendSafeEmail(STORE_EMAILS[v[i][1]], `【確定通知】予約が確定しました`, body);
       return "完了";
@@ -107,7 +99,6 @@ function finalizeRequest(id, dateStr) {
   }
 }
 
-// 修正保存 ＋ 通知
 function updateRequestData(obj) {
   const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('予約データ');
   const v = ss.getDataRange().getValues();
@@ -118,14 +109,13 @@ function updateRequestData(obj) {
       const eDate = calculateEntryDate(nDate, obj.course);
       ss.getRange(r, 2, 1, 5).setValues([[obj.shop, obj.name, obj.car, obj.num, obj.course]]);
       ss.getRange(r, 7).setValue(nDate); ss.getRange(r, 8).setValue(eDate); ss.getRange(r, 10).setValue(obj.note);
-      const body = `予約内容が修正されました。最新状況を確認してください。\n\n顧客：${obj.name}様\n通検予定日：${obj.date}\n工場入庫日：${Utilities.formatDate(eDate, "JST", "yyyy-MM-dd")}`;
+      const body = `予約内容が修正されました。\n\n顧客：${obj.name}様\n通検予定日：${obj.date}\n工場入庫日：${Utilities.formatDate(eDate, "JST", "yyyy-MM-dd")}`;
       sendSafeEmail(STORE_EMAILS[obj.shop], `【重要】予約内容が変更されました`, body);
       return "完了";
     }
   }
 }
 
-// 削除 ＋ 通知
 function deleteRequest(id) {
   const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('予約データ');
   const v = ss.getDataRange().getValues();
@@ -148,10 +138,10 @@ function getAdminData() {
   const fmt = (date) => (date instanceof Date && !isNaN(date.getTime())) ? (date.getMonth()+1)+"/"+date.getDate()+"("+days[date.getDay()]+")" : "-";
   for (let i = 1; i < v.length; i++) {
     const row = v[i]; if (!row[8]) continue;
-    const obj = { id: row[0], shop: row[1], name: row[2], car: row[3], num: row[4], course: String(row[5]), note: row[9], dateStr: fmt(row[6]), entryStr: fmt(row[7]), rawDate1: d[i][6], rawDate2: d[i][13], sortTime: (row[6] instanceof Date) ? row[6].getTime() : 0, entryTime: (row[7] instanceof Date) ? row[7].getTime() : 0, date1Str: d[i][6], date2Str: d[i][13], fileUrls: row[12] };
+    const obj = { id: row[0], shop: row[1], name: row[2], car: row[3], num: row[4], course: String(row[5]), note: row[9], dateStr: fmt(row[6]), entryStr: fmt(row[7]), rawDate1: d[i][6], rawDate2: d[i][13], date1Str: d[i][6], date2Str: d[i][13], fileUrls: row[12] };
     if (String(row[8]) !== "確定") { pendingList.push(obj); continue; }
     if (obj.course.indexOf("車検") !== -1) inspectList.push(obj);
-    if (obj.course.indexOf("セーフティー") !== -1 || obj.course.indexOf("一般整備") !== -1) factoryList.push(obj);
+    else factoryList.push(obj);
   }
   return { inspect: inspectList, factory: factoryList, pending: pendingList };
 }
@@ -169,4 +159,5 @@ function getShopStatusData(shopName) {
   }
   return { pending, confirmed };
 }
+
 function checkAdminPassword(pw) { return pw === "1234"; }
