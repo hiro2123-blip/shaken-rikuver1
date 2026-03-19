@@ -51,3 +51,48 @@
       <div><label>3.自賠責<span id="r3" style="color:red">●</span></label><input type="file" id="f3" onchange="v()"></div>
       <div><label>4.任意保険等</label><input type="file" id="f4" onchange="v()"></div>
     </div>
+    <button type="submit" class="submit-btn" id="s-btn" disabled>入力してください</button>
+  </form></div>
+  <div id="cOverlay" class="modal"><div class="modal-box"><h3>送信内容確認</h3><div id="cContent" style="margin:15px 0;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><button onclick="executeSubmit()" style="padding:15px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:bold;">送信する</button><button onclick="closeConfirm()" style="padding:15px; background:#eee; border:none; border-radius:10px;">修正</button></div></div></div>
+  <script>
+  let holidays = []; let fp1, fp2; let type = 'std';
+  window.onload = () => { google.script.run.withSuccessHandler(data => { holidays = data; updateCalendar(); v(); }).getHolidays(); };
+  function updateCalendar() {
+    const isS = document.getElementById('shopSelect').value === "車検課";
+    const rules = isS ? [] : [function(date) { const d = flatpickr.formatDate(date, "Y-m-d"); return (date.getDay()===0||date.getDay()===6||holidays.includes(d)); }];
+    if (fp1) fp1.destroy(); if (fp2) fp2.destroy();
+    const cfg = { locale: "ja", dateFormat: "Y-m-d", minDate: new Date().fp_incr(3), disable: rules, onChange: () => v() };
+    fp1 = flatpickr("#d1", cfg); fp2 = flatpickr("#d2", cfg);
+  }
+  function setCourse(t, c, el) {
+    document.querySelectorAll('.course-card').forEach(x => x.classList.remove('active','std','saf','gen')); el.classList.add('active', c);
+    document.getElementById('course').value = t; type = c;
+    const r1 = document.getElementById('r1'), r3 = document.getElementById('r3');
+    if (c === 'gen') { r1.style.display="none"; r3.style.display="none"; } else { r1.style.display="inline"; r3.style.display="inline"; }
+    v();
+  }
+  function v() {
+    const f1 = !!document.getElementById('f1').value, f2 = !!document.getElementById('f2').value, f3 = !!document.getElementById('f3').value;
+    const filesOk = (type === 'gen') ? f2 : (f1 && f2 && f3);
+    const baseOk = !!document.getElementById('d1').value && !!document.getElementById('shopSelect').value && !!document.getElementById('userName').value && !!document.getElementById('carModel').value && !!document.getElementById('carNum').value;
+    const btn = document.getElementById('s-btn'); btn.disabled = !(filesOk && baseOk);
+    btn.innerText = (filesOk && baseOk) ? "内容を確認して送信" : "入力してください";
+  }
+  document.getElementById('reqForm').onsubmit = (e) => { e.preventDefault(); 
+    const c = document.getElementById('course').value;
+    const msg = c.includes('セーフティー') ? '<br><span style="color:red; font-size:0.8rem;">※通検日の前日が「工場入庫日」となります。</span>' : '';
+    document.getElementById('cContent').innerHTML = `<b>顧客:</b> ${document.getElementById('userName').value}様<br><b>希望日:</b> ${document.getElementById('d1').value}${msg}`; 
+    document.getElementById('cOverlay').style.display='flex'; 
+  };
+  function closeConfirm() { document.getElementById('cOverlay').style.display='none'; }
+  async function executeSubmit() {
+    closeConfirm(); const btn = document.getElementById('s-btn'); btn.innerText = "送信中..."; btn.disabled = true;
+    const data = Object.fromEntries(new FormData(document.getElementById('reqForm')));
+    for (let i = 1; i <= 4; i++) {
+      const f = document.getElementById('f' + i).files[0];
+      if (f) data['file' + i] = await new Promise(r => { const rd = new FileReader(); rd.onload = ev => r({data: ev.target.result.split(',')[1], type: f.type, name: f.name}); rd.readAsDataURL(f); });
+    }
+    google.script.run.withSuccessHandler(res => { if (res.success) { alert("送信完了"); location.reload(); } else { alert(res.message); btn.disabled = false; } }).submitRequest(data);
+  }
+  function loginAdmin() { const p = prompt("パスワードを入力"); if(p) google.script.run.withSuccessHandler(ok => { if(ok) window.top.location.replace("<?= scriptUrl ?>?p=admin"); else alert("NG"); }).checkAdminPassword(p); }
+</script></body></html>

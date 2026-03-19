@@ -1,15 +1,13 @@
 /**
- * 車検・整備リクエストシステム - 【真・最終完全版：工場入庫日ロジック＆全通知統合】
+ * 車検・整備リクエストシステム - 【真・最終完全版】
  */
 
-// 1. 設定エリア
 const ADMIN_EMAILS = ["honbu-admin@example.com", "honbu-sub@example.com", "office@example.com"];
 const STORE_EMAILS = {
   "車検課": "syaken@example.com", "板橋ss": "it@ex.com", "志村ss": "shi@ex.com",
   "小茂根ss": "ko@ex.com", "赤羽西ss": "aka@ex.com", "東坂下ss": "hi@ex.com",
   "高島平ss": "taka@ex.com", "武蔵関ss": "mu@ex.com"
 };
-
 const FOLDER_ID = "120Pjmdr36BTFFTQxtgrJN6GGY9ovobrQ"; 
 
 function doGet(e) {
@@ -35,19 +33,15 @@ function parseFixedDate(str) {
   return p.length === 3 ? new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]), 12, 0, 0) : null;
 }
 
+// 工場入庫日の計算（セーフティー車検の特別ルール）
 function calculateEntryDate(baseDate, courseName) {
   let eDate = new Date(baseDate.getTime());
   if (courseName && courseName.indexOf('セーフティー') !== -1) {
-    eDate.setDate(eDate.getDate() - 1); 
-    if (eDate.getDay() === 0) eDate.setDate(eDate.getDate() - 2); 
-    if (eDate.getDay() === 6) eDate.setDate(eDate.getDate() - 1); 
+    eDate.setDate(eDate.getDate() - 1); // 1日前
+    if (eDate.getDay() === 0) eDate.setDate(eDate.getDate() - 2); // 日曜なら金曜
+    if (eDate.getDay() === 6) eDate.setDate(eDate.getDate() - 1); // 土曜なら金曜
   }
   return eDate;
-}
-
-function sendSafeEmail(to, subject, body) {
-  if (!to || to.trim() === "") return;
-  try { GmailApp.sendEmail(to, subject, body); } catch(e) { console.error("Mail fail: " + to); }
 }
 
 function submitRequest(formData) {
@@ -71,11 +65,6 @@ function submitRequest(formData) {
 
     const requestId = "REQ-" + Utilities.formatDate(new Date(), "JST", "MMdd-HHmm") + "-" + Math.floor(Math.random()*100);
     ss.appendRow([requestId, formData.shop, formData.name, formData.car, formData.num, formData.course, formData.date1, entryDate, "リクエスト中", formData.note, new Date(), "", fileUrls.join("\n"), formData.date2 || ""]);
-    
-    const commonBody = `店舗：${formData.shop}\n顧客：${formData.name}様\n車種：${formData.car}\n通検希望日：${formData.date1}\nコース：${formData.course}`;
-    ADMIN_EMAILS.forEach(email => sendSafeEmail(email, `【新規】${formData.shop}よりリクエスト`, commonBody));
-    sendSafeEmail(STORE_EMAILS[formData.shop], `【リクエスト控え】送信完了しました`, commonBody);
-
     return { success: true };
   } catch (e) { return { success: false, message: e.toString() }; }
   finally { lock.releaseLock(); }
@@ -89,28 +78,7 @@ function finalizeRequest(id, dateStr) {
       const r = i + 1;
       const fDate = parseFixedDate(dateStr);
       const eDate = calculateEntryDate(fDate, String(v[i][5]));
-      ss.getRange(r, 9).setValue('確定'); 
-      ss.getRange(r, 7).setValue(fDate);
-      ss.getRange(r, 8).setValue(eDate);
-      const body = `${v[i][2]}様の内容が確定しました。\n\n通検予定日：${dateStr}\n工場入庫日：${Utilities.formatDate(eDate, "JST", "yyyy-MM-dd")}`;
-      sendSafeEmail(STORE_EMAILS[v[i][1]], `【確定通知】予約が確定しました`, body);
-      return "完了";
-    }
-  }
-}
-
-function updateRequestData(obj) {
-  const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('予約データ');
-  const v = ss.getDataRange().getValues();
-  for (let i = 1; i < v.length; i++) {
-    if (String(v[i][0]) === String(obj.id)) {
-      const r = i + 1;
-      const nDate = parseFixedDate(obj.date);
-      const eDate = calculateEntryDate(nDate, obj.course);
-      ss.getRange(r, 2, 1, 5).setValues([[obj.shop, obj.name, obj.car, obj.num, obj.course]]);
-      ss.getRange(r, 7).setValue(nDate); ss.getRange(r, 8).setValue(eDate); ss.getRange(r, 10).setValue(obj.note);
-      const body = `予約内容が修正されました。\n\n顧客：${obj.name}様\n通検予定日：${obj.date}\n工場入庫日：${Utilities.formatDate(eDate, "JST", "yyyy-MM-dd")}`;
-      sendSafeEmail(STORE_EMAILS[obj.shop], `【重要】予約内容が変更されました`, body);
+      ss.getRange(r, 9).setValue('確定'); ss.getRange(r, 7).setValue(fDate); ss.getRange(r, 8).setValue(eDate);
       return "完了";
     }
   }
@@ -119,14 +87,7 @@ function updateRequestData(obj) {
 function deleteRequest(id) {
   const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('予約データ');
   const v = ss.getDataRange().getValues();
-  for (let i = 1; i < v.length; i++) {
-    if (String(v[i][0]) === String(id)) {
-      const shop = v[i][1]; const name = v[i][2];
-      ss.deleteRow(i + 1);
-      sendSafeEmail(STORE_EMAILS[shop], `【削除通知】リクエストが取り消されました`, `${name}様のリクエストは削除されました。`);
-      return "完了";
-    }
-  }
+  for (let i = 1; i < v.length; i++) { if (String(v[i][0]) === String(id)) { ss.deleteRow(i + 1); return "完了"; } }
 }
 
 function getAdminData() {
@@ -140,8 +101,7 @@ function getAdminData() {
     const row = v[i]; if (!row[8]) continue;
     const obj = { id: row[0], shop: row[1], name: row[2], car: row[3], num: row[4], course: String(row[5]), note: row[9], dateStr: fmt(row[6]), entryStr: fmt(row[7]), rawDate1: d[i][6], rawDate2: d[i][13], date1Str: d[i][6], date2Str: d[i][13], fileUrls: row[12] };
     if (String(row[8]) !== "確定") { pendingList.push(obj); continue; }
-    if (obj.course.indexOf("車検") !== -1) inspectList.push(obj);
-    else factoryList.push(obj);
+    if (obj.course.indexOf("車検") !== -1) inspectList.push(obj); else factoryList.push(obj);
   }
   return { inspect: inspectList, factory: factoryList, pending: pendingList };
 }
@@ -159,5 +119,4 @@ function getShopStatusData(shopName) {
   }
   return { pending, confirmed };
 }
-
 function checkAdminPassword(pw) { return pw === "1234"; }

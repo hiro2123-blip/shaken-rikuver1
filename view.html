@@ -1,12 +1,11 @@
-<!DOCTYPE html><html><head>
-  <style>
-    body { font-family: sans-serif; background: #f8fafc; margin: 0; padding: 10px; }
-    .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 5px solid #94a3b8; }
-    .card.confirmed { border-top-color: #22c55e; }
-    .badge { padding: 3px 10px; border-radius: 5px; font-size: 0.7rem; font-weight: bold; color: white; }
-    .bg-std { background: #4f46e5; } .bg-saf { background: #d97706; } .bg-gen { background: #059669; }
-  </style></head><body>
-  <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>📡 状況確認</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:6px 12px; border:none; background:#f1f5f9; border-radius:5px; cursor:pointer;">戻る</button></header>
+<!DOCTYPE html><html><head><style>
+  body { font-family: sans-serif; background: #f8fafc; padding: 10px; font-size: 14px; }
+  .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 5px solid #94a3b8; }
+  .card.confirmed { border-top-color: #22c55e; }
+  .badge { padding: 3px 10px; border-radius: 5px; font-size: 0.7rem; font-weight: bold; color: white; }
+  .bg-std { background: #4f46e5; } .bg-saf { background: #d97706; } .bg-gen { background: #059669; }
+</style></head><body>
+  <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>📡 状況確認</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:6px 12px; border:none; background:#f1f5f9; border-radius:5px;">戻る</button></header>
   <select id="shopSelect" onchange="refresh()" style="width:100%; padding:12px; border-radius:8px; border:2px solid #2563eb; margin-bottom:15px;"><option value="">店舗を選択</option><option value="車検課">車検課</option><option value="板橋ss">板橋ss</option><option value="志村ss">志村ss</option><option value="小茂根ss">小茂根ss</option><option value="赤羽西ss">赤羽西ss</option><option value="東坂下ss">東坂下ss</option><option value="高島平ss">高島平ss</option><option value="武蔵関ss">武蔵関ss</option></select>
   <div id="content"></div><script>
   function getBadge(c) { let cls = c.includes('スタンダード') ? 'bg-std' : (c.includes('セーフティー') ? 'bg-saf' : 'bg-gen'); return `<span class="badge ${cls}">${c}</span>`; }

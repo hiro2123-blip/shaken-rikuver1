@@ -1,15 +1,14 @@
-<!DOCTYPE html><html><head>
-  <style>
-    body { font-family: sans-serif; background: #f1f5f9; padding: 5px; font-size: 13px; }
-    .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 4px solid #cbd5e1; margin-bottom: 15px; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-    .choice-card { border: 2px solid #2563eb; border-radius: 6px; padding: 4px; cursor: pointer; text-align: center; margin-bottom: 3px; background: #eff6ff; font-weight:bold; }
-    .btn-del { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; width: 100%; }
-  </style></head><body>
+<!DOCTYPE html><html><head><style>
+  body { font-family: sans-serif; background: #f1f5f9; padding: 10px; font-size: 13px; }
+  .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 4px solid #cbd5e1; margin-bottom: 15px; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+  .choice-card { border: 2px solid #2563eb; border-radius: 6px; padding: 4px; cursor: pointer; text-align: center; margin-bottom: 3px; background: #eff6ff; font-weight:bold; }
+  .btn-del { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; width: 100%; }
+</style></head><body>
   <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>🛠️ 集中管理</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:8px 12px; border:none; background:#334155; color:white; border-radius:5px;">店舗画面</button></header>
   <div class="card">
-    <table><thead><tr><th>店舗</th><th>顧客</th><th>希望日選択</th></tr></thead><tbody id="p-body"></tbody></table>
+    <table><thead><tr><th>店舗</th><th>顧客</th><th>操作</th></tr></thead><tbody id="p-body"></tbody></table>
   </div>
   <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
     <div class="card"><b>🏎️ 通検予定</b><div id="i-list"></div></div>
@@ -18,7 +17,7 @@
   function load() {
     google.script.run.withSuccessHandler(res => {
       document.getElementById('p-body').innerHTML = res.pending.map(p => `<tr><td>${p.shop}</td><td>${p.name}</td><td><div class="choice-card" onclick="conf('${p.id}','${p.rawDate1}')">${p.date1Str}</div><button class="btn-del" onclick="delReq('${p.id}')">削除</button></td></tr>`).join('');
-      const listFmt = (item) => `<div style="padding:10px; border-bottom:1px solid #eee;">${item.dateStr} ${item.name}様<br><button class="btn-del" onclick="delReq('${item.id}')">削除</button></div>`;
+      const listFmt = (item) => `<div style="padding:10px; border-bottom:1px solid #eee;">${item.dateStr} ${item.name}様 (${item.shop})<br><button class="btn-del" onclick="delReq('${item.id}')">削除</button></div>`;
       document.getElementById('i-list').innerHTML = res.inspect.map(listFmt).join('');
       document.getElementById('f-list').innerHTML = res.factory.map(listFmt).join('');
     }).getAdminData();
