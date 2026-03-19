@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: sans-serif; background: #f8fafc; margin: 0; padding: 10px; font-size: 14px; }
+    .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.05); border-top: 5px solid #94a3b8; }
+    .card.confirmed { border-top-color: #22c55e; }
+    .badge { padding: 3px 10px; border-radius: 5px; font-size: 0.7rem; font-weight: bold; color: white; }
+    .bg-std { background: #4f46e5; } .bg-saf { background: #d97706; } .bg-gen { background: #059669; }
+    .choice-container { display: flex; gap: 8px; margin-top: 10px; }
+    .choice-item { flex: 1; border: 2px solid; border-radius: 8px; padding: 6px; text-align: center; }
+    .c1 { border-color: #2563eb; background: #eff6ff; color: #1e40af; font-weight:bold; }
+    .c2 { border-color: #059669; background: #f0fdf4; color: #166534; font-weight:bold; }
+  </style>
+</head>
+<body>
+  <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>📡 状況確認</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:6px 12px; border:none; background:#f1f5f9; border-radius:5px; cursor:pointer;">戻る</button></header>
+  <select id="shopSelect" onchange="refresh()" style="width:100%; padding:12px; border-radius:8px; border:2px solid #2563eb; margin-bottom:15px;"><option value="">店舗を選択</option><option value="車検課">車検課</option><option value="板橋ss">板橋ss</option><option value="志村ss">志村ss</option><option value="小茂根ss">小茂根ss</option><option value="赤羽西ss">赤羽西ss</option><option value="東坂下ss">東坂下ss</option><option value="高島平ss">高島平ss</option><option value="武蔵関ss">武蔵関ss</option></select>
+  <div id="content"></div>
+<script>
+  function getBadge(c) { let cls = c.includes('スタンダード') ? 'bg-std' : (c.includes('セーフティー') ? 'bg-saf' : 'bg-gen'); return `<span class="badge ${cls}">${c}</span>`; }
+  function refresh() {
+    const s = document.getElementById('shopSelect').value; if(!s) return;
+    google.script.run.withSuccessHandler(res => {
+      let h = '<b>📩 承認待ち</b>';
+      res.pending.forEach(d => { h += `<div class="card"><b>${d.name}様</b> ${getBadge(d.course)}<br><small>${d.car} (${d.num})</small><div class="choice-container"><div class="choice-item c1">第1: ${d.date1}</div><div class="choice-item c2">第2: ${d.date2||'なし'}</div></div></div>`; });
+      h += '<br><b>✅ 確定済み</b>';
+      res.confirmed.forEach(d => { 
+        const isG = d.course.indexOf('一般') !== -1;
+        h += `<div class="card confirmed"><b>${d.name}様</b> ${getBadge(d.course)}<br><small>${d.car}</small><div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin-top:8px; background:#f8fafc; padding:8px; border-radius:8px;"><div>通検予定日<br><b style="color:#2563eb;">${d.confirmedDate}</b></div><div>工場入庫日<br><b style="color:#d97706;">${isG?'当日':d.entryDate}</b></div></div></div>`; 
+      });
+      document.getElementById('content').innerHTML = h;
+    }).getShopStatusData(s);
+  }
+</script>
+</body>
+</html>

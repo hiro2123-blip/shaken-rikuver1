@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
+  <style>
+    :root { --std: #4f46e5; --saf: #d97706; --gen: #059669; }
+    body { font-family: sans-serif; background: #f1f5f9; padding: 10px; margin: 0; color: #1e293b; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+    .container { max-width: 900px; margin: 0 auto 50px; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+    .course-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+    .course-card { padding: 12px 2px; border: 2px solid #e2e8f0; border-radius: 8px; cursor: pointer; text-align: center; font-weight: bold; font-size: 0.85rem; background: #fff; }
+    .active.std { background: var(--std); color: white; border-color: var(--std); }
+    .active.saf { background: var(--saf); color: white; border-color: var(--saf); }
+    .active.gen { background: var(--gen); color: white; border-color: var(--gen); }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+    label { font-weight: bold; display: block; margin-top: 10px; font-size: 0.85rem; }
+    input, select, textarea { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 8px; font-size: 1rem; box-sizing: border-box; }
+    .file-box { background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px dashed #cbd5e1; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .submit-btn { width: 100%; padding: 18px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2rem; cursor: pointer; margin-top: 15px; }
+    .submit-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; backdrop-filter: blur(2px); }
+    .modal-box { background:white; padding:20px; border-radius:12px; width:90%; max-width:350px; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+    <h1 style="margin:0; font-size:1.1rem; color:#2563eb;">車検・整備リクエスト</h1>
+    <div style="display:flex; gap:5px;"><button type="button" onclick="window.top.location.replace('<?= scriptUrl ?>?p=view')" style="background:#64748b; color:white; border-radius:5px; padding:5px 10px; border:none; font-size:0.75rem;">状況確認</button><button type="button" onclick="loginAdmin()" style="font-size:0.75rem; padding:6px 10px; border-radius:5px; background:#fff; border:1px solid #ddd;">管理</button></div>
+  </header>
+  <div class="course-selector">
+    <div class="course-card active std" onclick="setCourse('スタンダード車検','std',this)">スタンダード</div>
+    <div class="course-card" onclick="setCourse('セーフティー車検','saf',this)">セーフティー</div>
+    <div class="course-card" onclick="setCourse('一般整備・修理','gen',this)">一般整備</div>
+  </div>
+  <form id="reqForm">
+    <input type="hidden" name="course" id="course" value="スタンダード車検">
+    <div class="form-grid">
+      <div>
+        <label>担当店舗*</label><select name="shop" id="shopSelect" required onchange="v()"><option value="">選択</option><option value="車検課">車検課</option><option value="板橋ss">板橋ss</option><option value="志村ss">志村ss</option><option value="小茂根ss">小茂根ss</option><option value="赤羽西ss">赤羽西ss</option><option value="東坂下ss">東坂下ss</option><option value="高島平ss">高島平ss</option><option value="武蔵関ss">武蔵関ss</option></select>
+        <label>通検予定日*</label><input type="text" name="date1" id="d1" required readonly>
+        <label>第二希望日</label><input type="text" name="date2" id="d2" readonly>
+      </div>
+      <div>
+        <label>顧客名*</label><input type="text" name="name" id="userName" required oninput="v()">
+        <label>車種*</label><input type="text" name="car" id="carModel" required oninput="v()">
+        <label>ナンバー*</label><input type="text" name="num" id="carNum" required oninput="v()">
+      </div>
+    </div>
+    <div class="file-box">
+      <div><label>1.受付表<span id="r1" style="color:red">●</span></label><input type="file" id="f1" onchange="v()"></div>
+      <div><label>2.車検証<span style="color:red">●</span></label><input type="file" id="f2" onchange="v()"></div>
+      <div><label>3.自賠責<span id="r3" style="color:red">●</span></label><input type="file" id="f3" onchange="v()"></div>
+      <div><label>4.任意保険等</label><input type="file" id="f4" onchange="v()"></div>
+    </div>
+    <button type="submit" class="submit-btn" id="s-btn" disabled>入力してください</button>
+  </form>
+</div>
+<div id="cOverlay" class="modal"><div class="modal-box"><h3>送信内容確認</h3><div id="cContent" style="margin:15px 0;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><button onclick="executeSubmit()" style="padding:15px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:bold;">送信する</button><button onclick="closeConfirm()" style="padding:15px; background:#eee; border:none; border-radius:10px;">修正</button></div></div></div>
+<script>
+  let holidays = []; let fp1, fp2; let type = 'std';
+  window.onload = () => { google.script.run.withSuccessHandler(data => { holidays = data; updateCalendar(); v(); }).getHolidays(); };
+  function updateCalendar() {
+    const isS = document.getElementById('shopSelect').value === "車検課";
+    const rules = isS ? [] : [function(date) { const d = flatpickr.formatDate(date, "Y-m-d"); return (date.getDay()===0||date.getDay()===6||holidays.includes(d)); }];
+    if (fp1) fp1.destroy(); if (fp2) fp2.destroy();
+    const cfg = { locale: "ja", dateFormat: "Y-m-d", minDate: new Date().fp_incr(3), disable: rules, onChange: () => v() };
+    fp1 = flatpickr("#d1", cfg); fp2 = flatpickr("#d2", cfg);
+  }
+  function setCourse(t, c, el) {
+    document.querySelectorAll('.course-card').forEach(x => x.classList.remove('active','std','saf','gen')); el.classList.add('active', c);
+    document.getElementById('course').value = t; type = c;
+    const r1 = document.getElementById('r1'), r3 = document.getElementById('r3');
+    if (c === 'gen') { r1.style.display="none"; r3.style.display="none"; } else { r1.style.display="inline"; r3.style.display="inline"; }
+    v();
+  }
+  function v() {
+    const f1 = !!document.getElementById('f1').value, f2 = !!document.getElementById('f2').value, f3 = !!document.getElementById('f3').value;
+    const filesOk = (type === 'gen') ? f2 : (f1 && f2 && f3);
+    const baseOk = !!document.getElementById('d1').value && !!document.getElementById('shopSelect').value && !!document.getElementById('userName').value && !!document.getElementById('carModel').value && !!document.getElementById('carNum').value;
+    const btn = document.getElementById('s-btn'); btn.disabled = !(filesOk && baseOk);
+    btn.innerText = (filesOk && baseOk) ? "送信内容を確認" : (!filesOk ? "書類を添付してください" : "入力してください");
+  }
+  document.getElementById('reqForm').onsubmit = (e) => { e.preventDefault(); 
+    const c = document.getElementById('course').value;
+    const msg = c.includes('セーフティー') ? '<br><span style="color:red; font-size:0.8rem;">※通検日の前日が「工場入庫日」となります。</span>' : '';
+    document.getElementById('cContent').innerHTML = `<b>顧客:</b> ${document.getElementById('userName').value}様<br><b>通検希望日:</b> ${document.getElementById('d1').value}${msg}`; 
+    document.getElementById('cOverlay').style.display='flex'; 
+  };
+  function closeConfirm() { document.getElementById('cOverlay').style.display='none'; }
+  async function executeSubmit() {
+    closeConfirm(); const btn = document.getElementById('s-btn'); btn.innerText = "送信中..."; btn.disabled = true;
+    const data = Object.fromEntries(new FormData(document.getElementById('reqForm')));
+    for (let i = 1; i <= 4; i++) {
+      const f = document.getElementById('f' + i).files[0];
+      if (f) data['file' + i] = await new Promise(r => { const rd = new FileReader(); rd.onload = ev => r({data: ev.target.result.split(',')[1], type: f.type, name: f.name}); rd.readAsDataURL(f); });
+    }
+    google.script.run.withSuccessHandler(res => { if (res.success) { alert("送信完了"); window.top.location.replace("<?= scriptUrl ?>"); } else { alert(res.message); btn.disabled = false; } }).submitRequest(data);
+  }
+  function loginAdmin() { const p = prompt("PASS"); if(p) google.script.run.withSuccessHandler(ok => { if(ok) window.top.location.replace("<?= scriptUrl ?>?p=admin"); else alert("NG"); }).checkAdminPassword(p); }
+</script>
+</body>
+</html>

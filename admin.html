@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: sans-serif; background: #f1f5f9; padding: 5px; font-size: 13px; }
+    .wrapper { max-width: 1100px; margin: 0 auto; }
+    .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 4px solid #cbd5e1; margin-bottom: 15px; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 0.6rem; font-weight: bold; color: white; }
+    .bg-std { background: #4f46e5; } .bg-saf { background: #d97706; } .bg-gen { background: #059669; }
+    .choice-card { border: 2px solid; border-radius: 6px; padding: 4px; cursor: pointer; text-align: center; margin-bottom: 3px; font-weight:bold; }
+    .choice-1 { border-color: #2563eb; background: #eff6ff; color: #1e40af; }
+    .choice-2 { border-color: #059669; background: #f0fdf4; color: #166534; }
+    .doc-btn { display: inline-block; margin: 2px 2px 0 0; padding: 4px 6px; background: #fff; border: 1px solid #2563eb; border-radius: 4px; text-decoration: none; color: #2563eb; font-size: 0.6rem; font-weight: bold; }
+    .btn-edit { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; width: 48%; font-weight:bold; }
+    .btn-del { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; width: 48%; font-weight:bold; }
+    #editModal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; }
+    .edit-box { background:white; padding:20px; border-radius:12px; width:90%; max-width:400px; }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>🛠️ 集中管理</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:8px 12px; border:none; background:#334155; color:white; border-radius:5px; cursor:pointer;">店舗画面</button></header>
+  <div class="card" style="border-top-color: #2563eb;">
+    <div style="padding:10px; font-weight:bold; color:#2563eb;">📩 未承認リクエスト</div>
+    <table><thead><tr><th style="width:20%">店舗</th><th style="width:30%">顧客/書類</th><th style="width:20%">車</th><th style="width:30%">選択/削除</th></tr></thead><tbody id="p-body"></tbody></table>
+  </div>
+  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
+    <div class="card" style="border-top-color:#4f46e5;"><div style="padding:8px; font-weight:bold;">🏎️ 通検予定</div><div id="i-list"></div></div>
+    <div class="card" style="border-top-color:#d97706;"><div style="padding:8px; font-weight:bold;">🔧 工場入庫</div><div id="f-list"></div></div>
+  </div>
+</div>
+<div id="editModal"><div class="edit-box"><h3>内容修正</h3><input type="hidden" id="e-id"><label>顧客名</label><input type="text" id="e-name" style="width:100%; margin-bottom:10px;"><label>通検予定日</label><input type="date" id="e-d" style="width:100%; margin-bottom:10px;"><label>車種</label><input type="text" id="e-car" style="width:100%; margin-bottom:10px;"><label>車番</label><input type="text" id="e-num" style="width:100%; margin-bottom:10px;"><label>コース</label><select id="e-c" style="width:100%; margin-bottom:10px;"><option value="スタンダード車検">スタンダード車検</option><option value="セーフティー車検">セーフティー車検</option><option value="一般整備・修理">一般整備・修理</option></select><div style="display:flex; gap:10px; margin-top:15px;"><button onclick="saveEdit()" style="flex:1; padding:10px; background:#059669; color:white; border:none; border-radius:50px;">保存</button><button onclick="closeModal()" style="flex:1; padding:10px; border:none; border-radius:50px;">閉じる</button></div></div></div>
+<script>
+  let all = []; const labels = ["受付表", "車検証", "自賠責", "保険証"];
+  function getBadge(c) { let cls = c.includes('スタンダード')?'bg-std':(c.includes('セーフティー')?'bg-saf':'bg-gen'); return `<span class="badge ${cls}">${c}</span>`; }
+  function getDocs(urls) { if (!urls) return ''; const list = urls.split('\n'); let h = ''; list.forEach((url, i) => { if (url && url.startsWith('http')) h += `<a href="${url}" target="_blank" class="doc-btn">📄${labels[i]}</a>`; }); return h; }
+  function load() {
+    google.script.run.withSuccessHandler(res => {
+      all = [...res.pending, ...res.inspect, ...res.factory];
+      document.getElementById('p-body').innerHTML = res.pending.map(p => `<tr><td><b>${p.shop}</b></td><td><b>${p.name}</b><br>${getDocs(p.fileUrls)}</td><td>${p.car}</td><td><div class="choice-card choice-1" onclick="conf('${p.id}','${p.rawDate1}')">${p.date1Str}</div>${p.rawDate2?`<div class="choice-card choice-2" onclick="conf('${p.id}','${p.rawDate2}')">${p.date2Str}</div>`:''}<button class="btn-del" style="width:100%" onclick="delReq('${p.id}')">削除</button></td></tr>`).join('');
+      const listFmt = (item) => `<div style="padding:10px; border-bottom:1px solid #eee;"><b>${item.dateStr}</b> ${item.shop}<br><b>${item.name}様</b> (${item.car})<br>${getBadge(item.course)} ${getDocs(item.fileUrls)}<div style="margin-top:5px; display:flex; gap:5px;"><button class="btn-edit" onclick="openEdit('${item.id}')">修正</button> <button class="btn-del" onclick="delReq('${item.id}')">削除</button></div></div>`;
+      document.getElementById('i-list').innerHTML = res.inspect.map(listFmt).join('');
+      document.getElementById('f-list').innerHTML = res.factory.map(listFmt).join('');
+    }).getAdminData();
+  }
+  function conf(id, d) { if(confirm(d + " で確定しますか？")) google.script.run.withSuccessHandler(load).finalizeRequest(id, d); }
+  function delReq(id) { if(confirm("完全に削除しますか？")) google.script.run.withSuccessHandler(load).deleteRequest(id); }
+  function openEdit(id) { const d = all.find(x => String(x.id) === String(id)); document.getElementById('e-id').value = d.id; document.getElementById('e-name').value = d.name; document.getElementById('e-d').value = d.rawDate1; document.getElementById('e-c').value = d.course; document.getElementById('e-car').value = d.car; document.getElementById('e-num').value = d.num; document.getElementById('editModal').style.display = 'flex'; }
+  function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+  function saveEdit() { const o = { id: document.getElementById('e-id').value, name: document.getElementById('e-name').value, date: document.getElementById('e-d').value, course: document.getElementById('e-c').value, car: document.getElementById('e-car').value, num: document.getElementById('e-num').value, shop: all.find(x=>x.id==document.getElementById('e-id').value).shop }; google.script.run.withSuccessHandler(() => { alert("更新完了！店舗へ通知しました。"); closeModal(); load(); }).updateRequestData(o); }
+  window.onload = load;
+</script>
+</body>
+</html>
