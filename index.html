@@ -4,7 +4,7 @@
   <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/ja.js"></script>
   <style>
-    :root { --std: #4f46e5; --saf: #d97706; --gen: #059669; }
+    :root { --std: #4f46e5; --saf: #ea580c; --gen: #059669; }
     body { font-family: sans-serif; background: #f1f5f9; padding: 10px; margin: 0; color: #1e293b; overflow-y: auto; }
     .container { max-width: 900px; margin: 0 auto; background: white; padding: 15px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
     .course-selector { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -19,12 +19,14 @@
     .file-box { background: #f8fafc; padding: 10px; border-radius: 10px; border: 1px dashed #cbd5e1; margin-top: 15px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .submit-btn { width: 100%; padding: 18px; background: #2563eb; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2rem; cursor: pointer; margin-top: 15px; }
     .submit-btn:disabled { background: #cbd5e1; cursor: not-allowed; }
-    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.7); z-index:9999; align-items:center; justify-content:center; }
-    .modal-box { background:white; padding:20px; border-radius:12px; width:90%; max-width:350px; }
+    .login-modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:9999; align-items:center; justify-content:center; }
+    .login-box { background:white; padding:30px; border-radius:15px; width:90%; max-width:400px; text-align:center; box-shadow:0 10px 30px rgba(0,0,0,0.3); }
+    .login-input { border:2px solid #ddd; padding:15px; font-size:1.2rem; width:100%; box-sizing:border-box; border-radius:10px; margin-bottom:20px; text-align:center; }
+    .login-btn { background:#1e293b; color:white; border:none; padding:18px; width:100%; border-radius:10px; font-weight:bold; font-size:1.1rem; cursor:pointer; }
   </style></head><body><div class="container">
   <header style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
     <h1 style="margin:0; font-size:1.1rem; color:#2563eb;">車検・整備リクエスト</h1>
-    <div style="display:flex; gap:5px;"><button type="button" onclick="window.top.location.replace('<?= scriptUrl ?>?p=view')" style="background:#64748b; color:white; border-radius:5px; padding:5px 10px; border:none; font-size:0.75rem;">状況確認</button><button type="button" onclick="loginAdmin()" style="font-size:0.75rem; padding:6px 10px; border-radius:5px; background:#fff; border:1px solid #ddd;">管理</button></div>
+    <div style="display:flex; gap:5px;"><button type="button" onclick="window.top.location.replace('<?= scriptUrl ?>?p=view')" style="background:#64748b; color:white; border-radius:5px; padding:5px 10px; border:none; font-size:0.75rem;">状況確認</button><button type="button" onclick="openLogin()" style="font-size:0.75rem; padding:6px 10px; border-radius:5px; background:#fff; border:1px solid #ddd;">管理</button></div>
   </header>
   <div class="course-selector">
     <div class="course-card active std" onclick="setCourse('スタンダード車検','std',this)">スタンダード</div>
@@ -45,6 +47,7 @@
         <label>ナンバー*</label><input type="text" name="num" id="carNum" required oninput="v()">
       </div>
     </div>
+    <label>備考</label><textarea name="note" rows="2" placeholder="ご要望など"></textarea>
     <div class="file-box">
       <div><label>1.受付表<span id="r1" style="color:red">●</span></label><input type="file" id="f1" onchange="v()"></div>
       <div><label>2.車検証<span style="color:red">●</span></label><input type="file" id="f2" onchange="v()"></div>
@@ -53,8 +56,13 @@
     </div>
     <button type="submit" class="submit-btn" id="s-btn" disabled>入力してください</button>
   </form></div>
-  <div id="cOverlay" class="modal"><div class="modal-box"><h3>送信内容確認</h3><div id="cContent" style="margin:15px 0;"></div><div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;"><button onclick="executeSubmit()" style="padding:15px; background:#2563eb; color:white; border:none; border-radius:10px; font-weight:bold;">送信する</button><button onclick="closeConfirm()" style="padding:15px; background:#eee; border:none; border-radius:10px;">修正</button></div></div></div>
-  <script>
+  <div id="loginModal" class="login-modal"><div class="login-box">
+    <h2 style="margin-top:0; color:#1e293b;">管理ログイン</h2>
+    <input type="password" id="passInput" class="login-input" placeholder="PASSWORD">
+    <button onclick="executeLogin()" class="login-btn">ログイン</button>
+    <button onclick="document.getElementById('loginModal').style.display='none'" style="margin-top:15px; background:none; border:none; color:#64748b; text-decoration:underline; cursor:pointer;">キャンセル</button>
+  </div></div>
+<script>
   let holidays = []; let fp1, fp2; let type = 'std';
   window.onload = () => { google.script.run.withSuccessHandler(data => { holidays = data; updateCalendar(); v(); }).getHolidays(); };
   function updateCalendar() {
@@ -76,23 +84,34 @@
     const filesOk = (type === 'gen') ? f2 : (f1 && f2 && f3);
     const baseOk = !!document.getElementById('d1').value && !!document.getElementById('shopSelect').value && !!document.getElementById('userName').value && !!document.getElementById('carModel').value && !!document.getElementById('carNum').value;
     const btn = document.getElementById('s-btn'); btn.disabled = !(filesOk && baseOk);
-    btn.innerText = (filesOk && baseOk) ? "内容を確認して送信" : "入力してください";
+    btn.innerText = (filesOk && baseOk) ? "送信する" : "入力してください";
   }
-  document.getElementById('reqForm').onsubmit = (e) => { e.preventDefault(); 
-    const c = document.getElementById('course').value;
-    const msg = c.includes('セーフティー') ? '<br><span style="color:red; font-size:0.8rem;">※通検日の前日が「工場入庫日」となります。</span>' : '';
-    document.getElementById('cContent').innerHTML = `<b>顧客:</b> ${document.getElementById('userName').value}様<br><b>希望日:</b> ${document.getElementById('d1').value}${msg}`; 
-    document.getElementById('cOverlay').style.display='flex'; 
+  document.getElementById('reqForm').onsubmit = (e) => {
+    e.preventDefault(); 
+    const btn = document.getElementById('s-btn'); 
+    btn.innerText = "送信中..."; btn.disabled = true; // 即座に無効化
+    executeSubmit();
   };
-  function closeConfirm() { document.getElementById('cOverlay').style.display='none'; }
   async function executeSubmit() {
-    closeConfirm(); const btn = document.getElementById('s-btn'); btn.innerText = "送信中..."; btn.disabled = true;
     const data = Object.fromEntries(new FormData(document.getElementById('reqForm')));
     for (let i = 1; i <= 4; i++) {
       const f = document.getElementById('f' + i).files[0];
       if (f) data['file' + i] = await new Promise(r => { const rd = new FileReader(); rd.onload = ev => r({data: ev.target.result.split(',')[1], type: f.type, name: f.name}); rd.readAsDataURL(f); });
     }
-    google.script.run.withSuccessHandler(res => { if (res.success) { alert("送信完了"); location.reload(); } else { alert(res.message); btn.disabled = false; } }).submitRequest(data);
+    google.script.run.withSuccessHandler(res => {
+      if(res.success) {
+        alert("送信完了しました。画面を戻します。");
+        window.top.location.href = "<?= scriptUrl ?>"; // 確実にリセット
+      } else {
+        alert("エラー: " + res.message);
+        document.getElementById('s-btn').disabled = false;
+        document.getElementById('s-btn').innerText = "送信する";
+      }
+    }).submitRequest(data);
   }
-  function loginAdmin() { const p = prompt("パスワードを入力"); if(p) google.script.run.withSuccessHandler(ok => { if(ok) window.top.location.replace("<?= scriptUrl ?>?p=admin"); else alert("NG"); }).checkAdminPassword(p); }
+  function openLogin() { document.getElementById('loginModal').style.display = 'flex'; }
+  function executeLogin() {
+    const pw = document.getElementById('passInput').value;
+    google.script.run.withSuccessHandler(ok => { if(ok) window.top.location.replace("<?= scriptUrl ?>?p=admin"); else alert("NG"); }).checkAdminPassword(pw);
+  }
 </script></body></html>

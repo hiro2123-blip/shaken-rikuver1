@@ -1,27 +1,66 @@
-<!DOCTYPE html><html><head><style>
-  body { font-family: sans-serif; background: #f1f5f9; padding: 10px; font-size: 13px; }
-  .card { background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border-top: 4px solid #cbd5e1; margin-bottom: 15px; }
-  table { width: 100%; border-collapse: collapse; }
-  th, td { padding: 8px; border-bottom: 1px solid #eee; text-align: left; }
-  .choice-card { border: 2px solid #2563eb; border-radius: 6px; padding: 4px; cursor: pointer; text-align: center; margin-bottom: 3px; background: #eff6ff; font-weight:bold; }
-  .btn-del { background: #fee2e2; border: 1px solid #ef4444; color: #b91c1c; padding: 5px; border-radius: 4px; cursor: pointer; font-size: 0.7rem; width: 100%; }
-</style></head><body>
-  <header style="display:flex; justify-content:space-between; margin-bottom:10px;"><h3>🛠️ 集中管理</h3><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="padding:8px 12px; border:none; background:#334155; color:white; border-radius:5px;">店舗画面</button></header>
-  <div class="card">
-    <table><thead><tr><th>店舗</th><th>顧客</th><th>操作</th></tr></thead><tbody id="p-body"></tbody></table>
+<!DOCTYPE html><html><head>
+  <base target="_top">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <style>
+    :root { --p: #2563eb; --s: #10b981; --d: #ef4444; }
+    body { font-family: sans-serif; background: #f1f5f9; padding: 10px; margin: 0; font-size: 13px; }
+    .header { display: flex; justify-content: space-between; align-items: center; background: #1e293b; color: white; padding: 10px; margin: -10px -10px 10px; }
+    .section-title { font-weight: bold; color: white; padding: 8px 12px; border-radius: 8px; margin: 25px 0 10px; display: flex; align-items: center; background: #334155; }
+    .grid-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+    @media (max-width: 800px) { .grid-wrap { grid-template-columns: 1fr; } }
+    .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); position: relative; }
+    .shop-tag { position: absolute; top: 10px; right: 10px; font-size: 0.7rem; color: #64748b; font-weight: bold; }
+    .cust-name { font-size: 1.1rem; font-weight: bold; margin: 2px 0; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 5px; font-size: 0.75rem; font-weight: bold; color: white; margin-bottom: 5px; }
+    .bg-std { background: #4f46e5; } .bg-saf { background: #ea580c; } .bg-gen { background: #059669; }
+    .date-btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+    .choice-btn { border: 2px solid #ddd; border-radius: 10px; padding: 8px 5px; background: #fff; cursor: pointer; text-align: center; }
+    .choice-btn b { display: block; font-size: 0.95rem; }
+    .btn-group { display: flex; gap: 8px; margin-top: 10px; }
+    .btn { flex: 1; padding: 8px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; font-size: 0.75rem; }
+    .btn-edit { background: #f1f5f9; color: var(--p); border: 1px solid var(--p); }
+    .btn-del { background: #fff1f2; color: var(--d); border: 1px solid var(--d); }
+    .doc-link { display: inline-block; padding: 4px 8px; background: #eff6ff; color: var(--p); border-radius: 4px; text-decoration: none; font-size: 0.7rem; margin: 2px; border: 1px solid #dbeafe; }
+    .modal { display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:999; align-items:center; justify-content:center; }
+    .modal-content { background:white; padding:15px; border-radius:12px; width:90%; max-width:400px; }
+    .modal input, .modal select, .modal textarea { width: 100%; padding: 10px; margin: 5px 0 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; }
+  </style></head><body>
+  <div class="header"><b>🛠 集中管理システム</b><button onclick="window.top.location.replace('<?= scriptUrl ?>')" style="color:white; border:1px solid white; background:none; padding:4px 8px; border-radius:4px;">店舗画面へ</button></div>
+  <div class="section-title" style="background:#f59e0b;">📥 未承認リクエスト (希望日ボタンを選択)</div>
+  <div id="list-pending"></div>
+  <div class="grid-wrap">
+    <div><div class="section-title" style="background:#2563eb;">🏎 通検日 (通検予定日順)</div><div id="list-inspect"></div></div>
+    <div><div class="section-title" style="background:#10b981;">🔧 入庫日 (工場入庫日順)</div><div id="list-factory"></div></div>
   </div>
-  <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px;">
-    <div class="card"><b>🏎️ 通検予定</b><div id="i-list"></div></div>
-    <div class="card"><b>🔧 工場入庫</b><div id="f-list"></div></div>
-  </div><script>
-  function load() {
-    google.script.run.withSuccessHandler(res => {
-      document.getElementById('p-body').innerHTML = res.pending.map(p => `<tr><td>${p.shop}</td><td>${p.name}</td><td><div class="choice-card" onclick="conf('${p.id}','${p.rawDate1}')">${p.date1Str}</div><button class="btn-del" onclick="delReq('${p.id}')">削除</button></td></tr>`).join('');
-      const listFmt = (item) => `<div style="padding:10px; border-bottom:1px solid #eee;">${item.dateStr} ${item.name}様 (${item.shop})<br><button class="btn-del" onclick="delReq('${item.id}')">削除</button></div>`;
-      document.getElementById('i-list').innerHTML = res.inspect.map(listFmt).join('');
-      document.getElementById('f-list').innerHTML = res.factory.map(listFmt).join('');
-    }).getAdminData();
+  <div id="editModal" class="modal"><div class="modal-content">
+    <h3>内容修正</h3><input type="hidden" id="edit-id">
+    店舗<select id="edit-shop"><option value="車検課">車検課</option><option value="板橋ss">板橋ss</option><option value="志村ss">志村ss</option><option value="小茂根ss">小茂根ss</option><option value="赤羽西ss">赤羽西ss</option><option value="東坂下ss">東坂下ss</option><option value="高島平ss">高島平ss</option><option value="武蔵関ss">武蔵関ss</option></select>
+    名前<input type="text" id="edit-name">通検日<input type="date" id="edit-date">車種<input type="text" id="edit-car">車番<input type="text" id="edit-num">
+    コース<select id="edit-course"><option value="スタンダード車検">スタンダード車検</option><option value="セーフティー車検">セーフティー車検</option><option value="一般整備・修理">一般整備・修理</option></select>
+    備考<textarea id="edit-note" rows="3"></textarea>
+    <div class="btn-group"><button class="btn" onclick="saveEdit()" style="background:#10b981; color:white;">保存</button><button class="btn" onclick="closeModal()" style="background:#eee;">閉じる</button></div>
+  </div></div>
+<script>
+  let all = {}; window.onload = load;
+  function load() { google.script.run.withSuccessHandler(res => { all = res; renderPending(res.pending); renderList('inspect', res.inspect); renderList('factory', res.factory); }).getAdminData(); }
+  function getBadge(c) { let cls = c.includes('スタンダード') ? 'bg-std' : (c.includes('セーフティー') ? 'bg-saf' : 'bg-gen'); return `<span class="badge ${cls}">${c}</span>`; }
+  function getDocs(urls) { if (!urls) return ''; const l = ["受付表", "車検証", "自賠責", "保険"]; return urls.split('\n').map((u, i) => u && u.startsWith('http') ? `<a href="${u}" target="_blank" class="doc-link">📄${l[i]}</a>` : '').join(''); }
+  function renderPending(list) {
+    const c = document.getElementById('list-pending');
+    if (list.length === 0) { c.innerHTML = '<p style="text-align:center; color:#94a3b8;">なし</p>'; return; }
+    c.innerHTML = list.map(d => `<div class="card"><div class="shop-tag">${d.shop}</div><div class="cust-name">${d.name} 様</div><div class="car-info">🚗 ${d.car} / ${d.num}</div>${getBadge(d.course)} ${getDocs(d.fileUrls)}${d.note ? `<div style="background:#fefce8; padding:8px; border-radius:6px; font-size:0.8rem; margin:8px 0; border:1px solid #fef3c7;">📝 ${d.note}</div>` : ''}<div class="date-btn-grid"><div class="choice-btn" onclick="conf('${d.id}','${d.rawDate1}')"><small>第1希望</small><b>${d.date1Str}</b></div>${d.rawDate2 ? `<div class="choice-btn" onclick="conf('${d.id}','${d.rawDate2}')"><small>第2希望</small><b>${d.date2Str}</b></div>` : ''}</div><div class="btn-group"><button class="btn btn-edit" onclick="openEdit('${d.id}')">修正</button><button class="btn btn-del" onclick="del('${d.id}')">削除</button></div></div>`).join('');
+  }
+  function renderList(type, list) {
+    const c = document.getElementById('list-' + type);
+    if (list.length === 0) { c.innerHTML = '<p style="text-align:center; color:#94a3b8;">なし</p>'; return; }
+    c.innerHTML = list.map(d => {
+      const isF = (type === 'factory');
+      return `<div class="card"><div class="shop-tag">${d.shop}</div><div class="cust-name">${d.name} 様</div><div class="car-info">🚗 ${d.car} / ${d.num}</div>${getBadge(d.course)} ${getDocs(d.fileUrls)}${d.note ? `<div style="background:#fefce8; padding:8px; border-radius:6px; font-size:0.8rem; margin:8px 0; border:1px solid #fef3c7;">📝 ${d.note}</div>` : ''}<div style="display:grid; grid-template-columns:1fr 1fr; gap:5px; margin:8px 0; background:#f8fafc; padding:8px; border-radius:8px;"><div><small>${isF?'入庫日':'通検日'}</small><br><b style="color:${isF?'#ea580c':'#2563eb'};">${isF?d.entryStr:d.dateStr}</b></div><div><small>${isF?'通検日':'入庫日'}</small><br><b style="color:${isF?'#2563eb':'#ea580c'};">${isF?d.dateStr:d.entryStr}</b></div></div><div class="btn-group"><button class="btn btn-edit" onclick="openEdit('${d.id}')">修正</button><button class="btn btn-del" onclick="del('${d.id}')">削除</button></div></div>`;
+    }).join('');
   }
   function conf(id, d) { if(confirm(d + " で確定しますか？")) google.script.run.withSuccessHandler(load).finalizeRequest(id, d); }
-  function delReq(id) { if(confirm("削除しますか？")) google.script.run.withSuccessHandler(load).deleteRequest(id); }
-  window.onload = load;</script></body></html>
+  function del(id) { if(confirm("データを完全に削除しますか？")) google.script.run.withSuccessHandler(load).deleteRequest(id); }
+  function openEdit(id) { const d = [...all.pending, ...all.inspect, ...all.factory].find(x => x.id == id); document.getElementById('edit-id').value = d.id; document.getElementById('edit-shop').value = d.shop; document.getElementById('edit-name').value = d.name; document.getElementById('edit-date').value = d.rawDate1; document.getElementById('edit-car').value = d.car; document.getElementById('edit-num').value = d.num; document.getElementById('edit-course').value = d.course; document.getElementById('edit-note').value = d.note || ""; document.getElementById('editModal').style.display = 'flex'; }
+  function closeModal() { document.getElementById('editModal').style.display = 'none'; }
+  function saveEdit() { const o = { id: document.getElementById('edit-id').value, shop: document.getElementById('edit-shop').value, name: document.getElementById('edit-name').value, date: document.getElementById('edit-date').value, car: document.getElementById('edit-car').value, num: document.getElementById('edit-num').value, course: document.getElementById('edit-course').value, note: document.getElementById('edit-note').value }; google.script.run.withSuccessHandler(() => { closeModal(); load(); }).updateRequestData(o); }
+</script></body></html>
